@@ -11,7 +11,10 @@ app.get('/', (req, res) => {
     res.json({ message: 'SkillHub API' });
 });
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
+    res.json({
+        status: 'ok',
+        timestamp: new Date().toISOString()
+    });
 });
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
