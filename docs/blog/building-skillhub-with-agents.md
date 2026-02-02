@@ -309,7 +309,119 @@ This prevents runaway deployments and gives the human visibility into every chan
 
 ## Part 3: The PRD
 
-*Coming next: Writing the Product Requirements Document and handing off to Wallace.*
+With both agents registered, verified, and configured with their SOUL files, it's time to give them work. We need to:
+
+1. Write a detailed PRD (Product Requirements Document)
+2. Post it as a gist on Agent IRC
+3. Message Wallace to kick things off
+
+### Writing the PRD
+
+We created a comprehensive PRD at `docs/PRD.md` that includes:
+
+- **Overview**: What SkillHub is and why it matters
+- **Tech Stack**: Next.js, Prisma, PostgreSQL, Zod
+- **Data Model**: Full Prisma schema with `Skill` entity
+- **Validation Rules**: Input constraints for all fields
+- **10 Detailed Issues**: Each with acceptance criteria
+
+The key insight: **be extremely specific**. We broke down the work into 10 discrete issues, each small enough for the Dev agent to complete in one cycle.
+
+<details>
+<summary>View Issue Breakdown (from PRD Section 7)</summary>
+
+| # | Title | Type |
+|---|-------|------|
+| 1 | Project scaffolding | Setup |
+| 2 | Database schema | Backend |
+| 3 | Zod validation schemas | Backend |
+| 4 | POST /skills endpoint | API |
+| 5 | GET /skills endpoints | API |
+| 6 | GET /skills/:id endpoint | API |
+| 7 | Skill submission form | Frontend |
+| 8 | Skill list + filter UI | Frontend |
+| 9 | Deployment config | DevOps |
+| 10 | README documentation | Docs |
+
+</details>
+
+### Posting the PRD as a Gist
+
+Agent IRC has a gist feature for sharing longer documents (messages are limited to 500 chars). Here's how we posted it:
+
+```bash
+# Download the agent-irc CLI
+curl -O https://api.agent-irc.net/agent-irc.sh
+chmod +x agent-irc.sh
+
+# Post the PRD as a gist (using Wallace's credentials)
+export AGENT_IRC_KEY="agent_irc_sk_ff0a3e..."
+./agent-irc.sh gist docs/PRD.md --title "SkillHub PRD v1.1"
+```
+
+Output:
+```
+Gist created: https://agent-irc.net/gists/650b13e0-671e-4baa-a1d2-246e1e2108b4
+```
+
+### Verifying the Agents
+
+Before agents can post messages, they must be **verified** by their human. This prevents rogue agents from spamming channels.
+
+The process:
+1. Try to post a message → get verification code (e.g., `fern-482`)
+2. Create a public GitHub Gist containing that code
+3. Call the verify endpoint with the gist URL
+
+```bash
+# Create verification gist
+echo "fern-482" | gh gist create --public -f verify.txt -
+
+# Claim the agent
+./agent-irc.sh claim https://gist.github.com/jmcdice/4e5dde2f807ff5b996cc7abd27b26786
+```
+
+Output:
+```
+Verifying claim via GitHub Gist...
+Success! Agent is now VERIFIED.
+Claimed by GitHub user: jmcdice
+```
+
+We verified both Wallace-PM and Gromit-Dev.
+
+### Kicking Off Wallace
+
+With the PRD posted and Wallace verified, we sent the kickoff message:
+
+```bash
+# Send instruction to #skillhub-dev
+curl -s -X POST "https://api.agent-irc.net/v1/channels/%23skillhub-dev/messages" \
+  -H "Authorization: Bearer $WALLACE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "@Wallace-PM PRD for SkillHub: https://agent-irc.net/gists/650b13e0-671e-4baa-a1d2-246e1e2108b4 - Please create GitHub issues 1-10 from Section 7. Repo: jmcdice/skillhub"
+  }'
+```
+
+And an announcement to the public channel:
+
+```bash
+curl -s -X POST "https://api.agent-irc.net/v1/channels/%23skillhub/messages" \
+  -H "Authorization: Bearer $WALLACE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Hello! I am Wallace-PM. SkillHub project is now live. PRD: https://agent-irc.net/gists/650b13e0-... - Watch this space as Gromit-Dev and I build it!"
+  }'
+```
+
+### The Channels Are Live
+
+You can watch the progress in real-time:
+- **#skillhub**: [agent-irc.net/channels/skillhub](https://agent-irc.net/channels/skillhub) (public announcements)
+- **#skillhub-dev**: [agent-irc.net/channels/skillhub-dev](https://agent-irc.net/channels/skillhub-dev) (coordination)
+
+**PRD Gist**: [agent-irc.net/gists/650b13e0-671e-4baa-a1d2-246e1e2108b4](https://agent-irc.net/gists/650b13e0-671e-4baa-a1d2-246e1e2108b4)
 
 ---
 
