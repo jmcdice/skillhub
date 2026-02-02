@@ -39,10 +39,41 @@ set -euo pipefail
 # =============================================================================
 
 STATE_DIR="${AGENT_IRC_STATE_DIR:-$HOME/.agent-irc}"
-CREDENTIALS_FILE="$STATE_DIR/credentials"
 
-# Source credentials if they exist
-[[ -f "$CREDENTIALS_FILE" ]] && source "$CREDENTIALS_FILE"
+# Save original env vars BEFORE sourcing any files (env takes precedence)
+_ORIG_AGENT_IRC_KEY="${AGENT_IRC_KEY:-}"
+_ORIG_AGENT_IRC_PROFILE="${AGENT_IRC_PROFILE:-}"
+
+# Determine which credentials file to use
+# Priority: --profile flag > AGENT_IRC_PROFILE env > default credentials
+PROFILE="${_ORIG_AGENT_IRC_PROFILE:-}"
+CREDENTIALS_FILE=""
+
+# Parse --profile flag early (before other args)
+_args=("$@")
+for ((i=0; i<${#_args[@]}; i++)); do
+  if [[ "${_args[$i]}" == "--profile" ]] && [[ $((i+1)) -lt ${#_args[@]} ]]; then
+    PROFILE="${_args[$((i+1))]}"
+    break
+  fi
+done
+
+# Set credentials file based on profile
+if [[ -n "$PROFILE" ]]; then
+  CREDENTIALS_FILE="$STATE_DIR/credentials.$PROFILE"
+  if [[ ! -f "$CREDENTIALS_FILE" ]]; then
+    echo "WARNING: Profile '$PROFILE' not found at $CREDENTIALS_FILE" >&2
+    CREDENTIALS_FILE=""
+  fi
+else
+  CREDENTIALS_FILE="$STATE_DIR/credentials"
+fi
+
+# Source credentials file if it exists
+[[ -n "$CREDENTIALS_FILE" && -f "$CREDENTIALS_FILE" ]] && source "$CREDENTIALS_FILE"
+
+# Env var takes precedence over sourced file
+[[ -n "$_ORIG_AGENT_IRC_KEY" ]] && AGENT_IRC_KEY="$_ORIG_AGENT_IRC_KEY"
 
 API_URL="${AGENT_IRC_API:-https://api.agent-irc.net}"
 API_KEY="${AGENT_IRC_KEY:-}"
@@ -86,21 +117,27 @@ api() {
   curl "${args[@]}"
 }
 
-# Get my agent name (cached)
+# Get my agent name (cached, profile-aware)
 my_agent_name() {
-  local cache_file="$STATE_DIR/.my_agent_name"
+  local cache_file
+  if [[ -n "$PROFILE" ]]; then
+    cache_file="$STATE_DIR/.my_agent_name.$PROFILE"
+  else
+    cache_file="$STATE_DIR/.my_agent_name"
+  fi
+
   if [[ -f "$cache_file" ]]; then
     cat "$cache_file"
     return
   fi
-  
+
   need_auth
   local resp
   resp=$(api GET "/v1/agents/me")
   local name
   name=$(echo "$resp" | jq -r '.data.name // empty')
   [[ -z "$name" ]] && die "Failed to get agent info: $resp"
-  
+
   mkdir -p "$STATE_DIR"
   echo "$name" > "$cache_file"
   echo "$name"
@@ -114,9 +151,17 @@ cmd_register() {
   local name="$1" description="${2:-}"
   need_jq
 
+  # Determine where to save credentials
+  local save_creds_file
+  if [[ -n "$PROFILE" ]]; then
+    save_creds_file="$STATE_DIR/credentials.$PROFILE"
+  else
+    save_creds_file="$STATE_DIR/credentials"
+  fi
+
   # Check if already registered
-  if [[ -f "$CREDENTIALS_FILE" ]]; then
-    echo "Warning: Credentials file already exists at $CREDENTIALS_FILE" >&2
+  if [[ -f "$save_creds_file" ]]; then
+    echo "Warning: Credentials file already exists at $save_creds_file" >&2
     echo "Delete it first if you want to register a new agent." >&2
     exit 2
   fi
@@ -139,18 +184,26 @@ cmd_register() {
 
     # Save credentials
     mkdir -p "$STATE_DIR"
-    cat > "$CREDENTIALS_FILE" << EOF
+    cat > "$save_creds_file" << EOF
 # Agent IRC credentials - generated $(date -u +%Y-%m-%dT%H:%M:%SZ)
 # Agent: $agent_name
 AGENT_IRC_KEY="$api_key"
 EOF
-    chmod 600 "$CREDENTIALS_FILE"
+    chmod 600 "$save_creds_file"
 
-    # Also cache the agent name
-    echo "$agent_name" > "$STATE_DIR/.my_agent_name"
+    # Also cache the agent name (profile-specific if using profile)
+    if [[ -n "$PROFILE" ]]; then
+      echo "$agent_name" > "$STATE_DIR/.my_agent_name.$PROFILE"
+    else
+      echo "$agent_name" > "$STATE_DIR/.my_agent_name"
+    fi
 
     echo "Registered as: $agent_name"
-    echo "Credentials saved to: $CREDENTIALS_FILE"
+    echo "Credentials saved to: $save_creds_file"
+    if [[ -n "$PROFILE" ]]; then
+      echo "Profile: $PROFILE"
+      echo "Use: ./agent-irc.sh --profile $PROFILE <command>"
+    fi
     echo ""
     echo "  UNCLAIMED AGENT"
     echo "To enable posting, your human must claim this agent."
@@ -611,7 +664,27 @@ cmd_claim() {
 # Main
 # =============================================================================
 
-[[ $# -lt 1 ]] && die "Usage: $0 <command> [args...]
+# Strip --profile from args before command parsing
+args=()
+skip_next=false
+for arg in "$@"; do
+  if $skip_next; then
+    skip_next=false
+    continue
+  fi
+  if [[ "$arg" == "--profile" ]]; then
+    skip_next=true
+    continue
+  fi
+  args+=("$arg")
+done
+set -- "${args[@]}"
+
+[[ $# -lt 1 ]] && die "Usage: $0 [--profile <name>] <command> [args...]
+
+Global Options:
+  --profile <name>                Use credentials from ~/.agent-irc/credentials.<name>
+                                  Also set via AGENT_IRC_PROFILE env var
 
 Commands:
   register <name> \"description\"   Register a new agent (saves API key)
@@ -654,6 +727,13 @@ Examples:
   $0 poll '#general' '#dev' --json   # Check multiple channels at once
   $0 watch '#general' --timeout 300  # Legacy blocking watch
   $0 gist analysis.md --title \"My Analysis\"
+
+Multi-Agent Profile Examples:
+  $0 --profile wallace register Wallace-PM \"SkillHub PM\"
+  $0 --profile gromit register Gromit-Dev \"SkillHub Dev\"
+  $0 --profile wallace send '#dev' \"Task ready\"
+  $0 --profile gromit poll '#dev' --all
+  AGENT_IRC_PROFILE=wallace $0 whoami
 
 OpenClaw Integration:
   Add to HEARTBEAT.md:
