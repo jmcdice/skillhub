@@ -208,6 +208,103 @@ This file persists between runs. The agent reads it on wake-up to restore contex
 
 The staggered schedules (7-minute offset) give the PM time to post work before the Dev wakes up.
 
+### Configuring Agent Behavior (SOUL Files)
+
+Each agent needs to know *who they are* and *how to behave*. We create a `SOUL.md` file for each agent that defines their workflow, rules, and authority.
+
+**Why "SOUL"?** It's the agent's core identity - their purpose, constraints, and decision-making framework. When the agent wakes up, it reads this file to understand its role.
+
+#### Wallace-PM's SOUL
+
+**Location:** `~/clawd/agents/wallace/SOUL.md`
+
+**Key sections:**
+
+| Section | Content |
+|---------|---------|
+| **Identity** | Name, role, project, repo, channels |
+| **Cycle** | Step-by-step PM workflow (poll, process, hand off, sleep) |
+| **Rules** | ONE issue at a time, create issues first, stay silent when idle |
+| **Authority** | CAN create issues, assign work. CANNOT write code or deploy |
+| **Quick Reference** | CLI commands for Agent IRC + GitHub |
+
+**The PM Cycle (runs every 15 minutes):**
+
+```
+1. WAKE UP → Read memory.md, check API key
+2. POLL CHANNELS → Check #skillhub and #skillhub-dev for messages
+3. PROCESS MESSAGES → Feature requests? Create issues. Completion reports? Close issues.
+4. CHECK WORK QUEUE → Is Gromit busy? Don't hand off new work.
+5. HAND OFF → If queue is clear, assign ONE issue to Gromit
+6. SLEEP → Update memory, session ends
+```
+
+**What Wallace CAN do autonomously:**
+- Create GitHub issues from PRD or requests
+- Assign issues to Gromit
+- Close issues that Gromit has completed
+- Post status updates to channels
+
+**What Wallace CANNOT do:**
+- Write code
+- Deploy anything
+- Approve deployments
+
+---
+
+#### Gromit-Dev's SOUL
+
+**Location:** `~/clawd/agents/gromit/SOUL.md`
+
+**Key sections:**
+
+| Section | Content |
+|---------|---------|
+| **Identity** | Name, role, project, repo, channels |
+| **Cycle** | Step-by-step Dev workflow (poll, implement, request approval, deploy, report) |
+| **Rules** | ONE issue at a time, feature branches, MUST request approval |
+| **Authority** | CAN write code, push branches. CANNOT deploy without approval |
+| **Quick Reference** | Git commands, deployment steps |
+
+**The Dev Cycle (runs every 15 minutes, offset by 7 min):**
+
+```
+1. WAKE UP → Read memory.md, resume work if in progress
+2. POLL DEV CHANNEL → Check for @mentions from Wallace
+3. CHECK WORK QUEUE → Any assigned issues? Work on them.
+4. IMPLEMENT → Feature branch, code, test, commit, push
+5. REQUEST APPROVAL → Message human: "Ready to deploy. Approve?"
+   ⚠️ STOP HERE. Wait for explicit "yes" from human.
+6. DEPLOY → Merge to main, run migrations, deploy
+7. REPORT → Tell Wallace it's done
+8. SLEEP → Update memory, session ends
+```
+
+**What Gromit CAN do autonomously:**
+- Create feature branches
+- Write code and tests
+- Push to feature branches
+- Request deployment approval
+
+**What Gromit CANNOT do:**
+- Deploy without human approval
+- Push directly to main
+- Change project architecture
+
+---
+
+#### The Approval Gate
+
+Notice step 5 in Gromit's cycle: **REQUEST APPROVAL**. This is the human-in-the-loop safety mechanism.
+
+Before any code goes to production:
+1. Gromit pushes to a feature branch
+2. Gromit asks the human: "Approve to deploy?"
+3. Human reviews and says "yes" or provides feedback
+4. Only then does Gromit merge and deploy
+
+This prevents runaway deployments and gives the human visibility into every change.
+
 ---
 
 ## Part 3: The PRD
@@ -248,5 +345,5 @@ For a detailed breakdown of the PM and Dev cycles, see our [Multi-Agent Developm
 
 *This blog post is being written in real-time as the project progresses.*
 
-*Last updated: 2026-02-01*
+*Last updated: 2026-02-02*
 
