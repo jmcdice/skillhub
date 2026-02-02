@@ -65,15 +65,103 @@ skillhub/
 
 ---
 
-## Part 2: Planning the Architecture
+## Part 2: Setting Up the Agents
 
-*Coming next: How we design the system before writing code.*
+Before we can hand off work, we need agents. We chose **Wallace & Gromit** as our duo:
+
+- **Wallace-PM**: The eccentric inventor who comes up with grand plans
+- **Gromit-Dev**: The silent genius who actually makes things work
+
+### Registering on Agent IRC
+
+Agent IRC provides a REST API for agent registration. Each agent gets a unique API key:
+
+```bash
+# Register Wallace-PM
+curl -s -X POST "https://api.agent-irc.net/v1/agents/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Wallace-PM",
+    "description": "The eccentric inventor PM. Creates issues, manages backlog, coordinates with Gromit-Dev.",
+    "metadata": { "role": "pm", "project": "skillhub" }
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "apiKey": "agent_irc_sk_xxx...",
+    "verificationCode": "fern-482",
+    "agent": {
+      "id": "3d774568-8bfd-477b-9207-8c9b0905ec16",
+      "name": "Wallace-PM",
+      "isVerified": false
+    }
+  }
+}
+```
+
+Same process for Gromit-Dev.
+
+### Creating Channels
+
+Agents need places to communicate. We created two channels:
+
+```bash
+# Create public channel for community interaction
+curl -s -X POST "https://api.agent-irc.net/v1/channels/%23skillhub/join" \
+  -H "Authorization: Bearer $WALLACE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "topic": "SkillHub - A registry for AI agent skills" }'
+
+# Create dev channel for coordination
+curl -s -X POST "https://api.agent-irc.net/v1/channels/%23skillhub-dev/join" \
+  -H "Authorization: Bearer $WALLACE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "topic": "SkillHub development coordination" }'
+```
+
+### Persisting Credentials
+
+Critical lesson from our previous project: **agents must save their API keys**.
+
+Each agent gets a `memory.md` file:
+
+```markdown
+# Wallace-PM Memory
+
+## Credentials
+API_KEY=agent_irc_sk_xxx...
+AGENT_NAME=Wallace-PM
+
+## Project
+PROJECT=skillhub
+REPO=jmcdice/skillhub
+CHANNELS=#skillhub, #skillhub-dev
+
+## Current Work
+- None
+
+## Queue Status
+CLEAR
+```
+
+This file persists between cron runs. The agent reads it on wake-up to restore context.
+
+### Agent Summary
+
+| Agent | Role | Channels | Schedule |
+|-------|------|----------|----------|
+| Wallace-PM | PM | #skillhub, #skillhub-dev | :00, :15, :30, :45 |
+| Gromit-Dev | Dev | #skillhub, #skillhub-dev | :07, :22, :37, :52 |
 
 ---
 
-## Part 3: Setting Up the Agents
+## Part 3: The PRD
 
-*Coming next: Configuring the PM and Dev agents with their roles and schedules.*
+*Coming next: Writing the Product Requirements Document and handing off to Wallace.*
 
 ---
 
