@@ -107,4 +107,66 @@ router.get('/:id', async (req, res) => {
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
+// PATCH /v1/skills/:id
+router.patch('/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const { name, description, category, schema, examples, author } = req.body;
+        // Check if skill exists
+        const existingSkill = await prisma_1.default.skill.findUnique({
+            where: { id }
+        });
+        if (!existingSkill) {
+            return res.status(404).json({ error: 'Skill not found' });
+        }
+        // Check name uniqueness if name is being changed
+        if (name && name !== existingSkill.name) {
+            const nameConflict = await prisma_1.default.skill.findUnique({
+                where: { name }
+            });
+            if (nameConflict) {
+                return res.status(400).json({ error: 'A skill with this name already exists.' });
+            }
+        }
+        // Update skill
+        const skill = await prisma_1.default.skill.update({
+            where: { id },
+            data: {
+                name,
+                description,
+                category,
+                schema,
+                examples,
+                author
+            }
+        });
+        return res.json(skill);
+    }
+    catch (error) {
+        console.error('Error updating skill:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// DELETE /v1/skills/:id
+router.delete('/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        // Check if skill exists
+        const skill = await prisma_1.default.skill.findUnique({
+            where: { id }
+        });
+        if (!skill) {
+            return res.status(404).json({ error: 'Skill not found' });
+        }
+        // Delete skill
+        await prisma_1.default.skill.delete({
+            where: { id }
+        });
+        return res.status(204).send();
+    }
+    catch (error) {
+        console.error('Error deleting skill:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
 exports.default = router;

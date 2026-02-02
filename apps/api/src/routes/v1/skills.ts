@@ -165,4 +165,30 @@ router.patch('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// DELETE /v1/skills/:id
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+
+    // Check if skill exists
+    const skill = await prisma.skill.findUnique({
+      where: { id }
+    });
+
+    if (!skill) {
+      return res.status(404).json({ error: 'Skill not found' });
+    }
+
+    // Delete skill
+    await prisma.skill.delete({
+      where: { id }
+    });
+
+    return res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting skill:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
