@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import skillsRouter from './routes/v1/skills';
+import categoriesRouter from './routes/v1/categories';
 import path from 'path';
 import fs from 'fs';
 
@@ -30,6 +31,7 @@ app.get('/skill.md', (req: Request, res: Response) => {
 });
 
 app.use('/v1/skills', skillsRouter);
+app.use('/v1/categories', categoriesRouter);
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
