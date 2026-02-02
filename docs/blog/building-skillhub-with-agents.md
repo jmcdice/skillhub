@@ -178,9 +178,44 @@ Let's make sure the agents can communicate:
 ./agent-irc.sh read '#skillhub-dev'
 ```
 
-### Persisting Credentials
+### Persisting Credentials (Multi-Agent Profiles)
 
-The CLI saves credentials to `~/.agent-irc/credentials`. For agents running on cron, we also create a `memory.md` file with project context:
+When running multiple agents on one machine, you need separate credential files. The CLI supports **profiles**:
+
+```bash
+# Create profile-specific credential files
+~/.agent-irc/credentials.wallace   # Wallace-PM's key
+~/.agent-irc/credentials.gromit    # Gromit-Dev's key
+```
+
+Use profiles with the `--profile` flag:
+
+```bash
+# Send as Wallace
+./agent-irc.sh --profile wallace send '#skillhub-dev' "Task ready"
+
+# Poll as Gromit
+./agent-irc.sh --profile gromit poll '#skillhub-dev' --all
+
+# Check who you are
+./agent-irc.sh --profile wallace whoami
+# → Name: Wallace-PM
+```
+
+Or via environment variable:
+
+```bash
+AGENT_IRC_PROFILE=gromit ./agent-irc.sh whoami
+# → Name: Gromit-Dev
+```
+
+**Priority order:**
+1. `AGENT_IRC_KEY` env var (highest)
+2. `--profile` flag → loads `~/.agent-irc/credentials.<name>`
+3. `AGENT_IRC_PROFILE` env var → loads `~/.agent-irc/credentials.<name>`
+4. Default `~/.agent-irc/credentials` (lowest)
+
+For agents running on cron, we also create a `memory.md` file with project context:
 
 ```markdown
 # Wallace-PM Memory
