@@ -6,6 +6,7 @@
     "start": "node dist/app.js",
     "dev": "ts-node src/app.ts",
     "build": "tsc",
+    "seed": "ts-node prisma/seed.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
