@@ -14,6 +14,7 @@ model Skill {
   id          String   @id @default(uuid())
   name        String   @unique
   description String
+  category    String?
   schema      Json
   examples    Json?
   author      String
