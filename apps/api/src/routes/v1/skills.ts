@@ -46,10 +46,12 @@ router.post('/', async (req: Request, res: Response) => {
 // GET /v1/skills
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { page = '1', limit = '20', category } = req.query;
+    const page = req.query.page as string || '1';
+    const limit = req.query.limit as string || '20';
+    const category = req.query.category as string;
     
-    const pageNum = parseInt(page as string, 10);
-    const limitNum = Math.min(parseInt(limit as string, 10), 100);
+    const pageNum = parseInt(page, 10);
+    const limitNum = Math.min(parseInt(limit, 10), 100);
     
     if (isNaN(pageNum) || pageNum < 1) {
       return res.status(400).json({ error: 'Invalid page number' });
@@ -61,11 +63,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     const where: any = {};
     if (category) {
-      // Assuming 'category' exists in schema or we treat it as a prefix/tag for now
-      // Based on PRD/Issues, we'll use a string match. 
-      // Note: If the schema doesn't have category, we might need a migration, 
-      // but I should check schema.prisma first.
-      where.category = category;
+      where.category = { equals: category as string };
     }
 
     const [total, skills] = await Promise.all([
@@ -89,6 +87,26 @@ router.get('/', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error fetching skills:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /v1/skills/:id
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const skill = await prisma.skill.findUnique({
+      where: { id }
+    });
+
+    if (!skill) {
+      return res.status(404).json({ error: 'Skill not found' });
+    }
+
+    return res.json(skill);
+  } catch (error) {
+    console.error('Error fetching skill by ID:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
