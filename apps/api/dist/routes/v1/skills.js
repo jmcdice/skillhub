@@ -44,9 +44,10 @@ router.post('/', async (req, res) => {
 // GET /v1/skills
 router.get('/', async (req, res) => {
     try {
-        const page = req.query.page || '1';
-        const limit = req.query.limit || '20';
-        const category = req.query.category;
+        const page = req.query.page?.toString() || '1';
+        const limit = req.query.limit?.toString() || '20';
+        const category = req.query.category?.toString();
+        const q = req.query.q?.toString();
         const pageNum = parseInt(page, 10);
         const limitNum = Math.min(parseInt(limit, 10), 100);
         if (isNaN(pageNum) || pageNum < 1) {
@@ -58,6 +59,12 @@ router.get('/', async (req, res) => {
         const where = {};
         if (category) {
             where.category = { equals: category };
+        }
+        if (q) {
+            where.OR = [
+                { name: { contains: q, mode: 'insensitive' } },
+                { description: { contains: q, mode: 'insensitive' } }
+            ];
         }
         const [total, skills] = await Promise.all([
             prisma_1.default.skill.count({ where }),
@@ -86,7 +93,7 @@ router.get('/', async (req, res) => {
 // GET /v1/skills/:id
 router.get('/:id', async (req, res) => {
     try {
-        const { id } = req.params;
+        const id = req.params.id;
         const skill = await prisma_1.default.skill.findUnique({
             where: { id }
         });
