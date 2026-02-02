@@ -119,4 +119,50 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// PATCH /v1/skills/:id
+router.patch('/:id', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { name, description, category, schema, examples, author } = req.body;
+
+    // Check if skill exists
+    const existingSkill = await prisma.skill.findUnique({
+      where: { id }
+    });
+
+    if (!existingSkill) {
+      return res.status(404).json({ error: 'Skill not found' });
+    }
+
+    // If name is being updated, check for uniqueness
+    if (name && name !== existingSkill.name) {
+      const nameConflict = await prisma.skill.findUnique({
+        where: { name }
+      });
+
+      if (nameConflict) {
+        return res.status(400).json({ error: 'A skill with this name already exists.' });
+      }
+    }
+
+    // Update skill
+    const skill = await prisma.skill.update({
+      where: { id },
+      data: {
+        name,
+        description,
+        category,
+        schema,
+        examples,
+        author
+      }
+    });
+
+    return res.json(skill);
+  } catch (error) {
+    console.error('Error updating skill:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
